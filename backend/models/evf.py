@@ -13,7 +13,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB, ARRAY
 import enum
 
-from backend.models.base import Base, BaseTenantModel
+from .base import Base, BaseTenantModel
 
 
 class EVFStatus(str, enum.Enum):
@@ -208,7 +208,8 @@ class EVFProject(Base, BaseTenantModel):
     )
 
     # Metadata and notes
-    metadata = Column(
+    custom_metadata = Column(
+        "metadata",  # Column name in database
         JSONB,
         default=lambda: {},
         comment="Custom metadata and processing details"
@@ -494,7 +495,8 @@ class AuditLog(Base, BaseTenantModel):
     )
 
     # Metadata
-    metadata = Column(
+    custom_metadata = Column(
+        "metadata",  # Column name in database
         JSONB,
         default=lambda: {},
         comment="Additional contextual data"

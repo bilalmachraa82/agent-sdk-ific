@@ -8,8 +8,8 @@ from fastapi import Request, HTTPException, status
 from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import Response
 
-from backend.core.database import db_manager
-from backend.core.security import security
+from .database import db_manager
+from .security import security
 
 
 class TenantMiddleware(BaseHTTPMiddleware):

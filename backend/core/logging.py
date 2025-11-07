@@ -10,7 +10,7 @@ from typing import Any, Dict
 import structlog
 from structlog.processors import CallsiteParameter, CallsiteParameterAdder
 
-from backend.core.config import settings
+from .config import settings
 
 
 def setup_logging(module_name: str) -> structlog.BoundLogger:

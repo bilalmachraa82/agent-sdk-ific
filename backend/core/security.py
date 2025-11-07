@@ -8,7 +8,7 @@ from passlib.context import CryptContext
 from jose import JWTError, jwt
 from fastapi import HTTPException, status
 
-from backend.core.config import settings
+from .config import settings
 
 # Password hashing context
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")

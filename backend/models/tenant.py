@@ -12,7 +12,7 @@ from sqlalchemy.orm import relationship
 from sqlalchemy.dialects.postgresql import JSONB
 import enum
 
-from backend.models.base import Base, BaseTenantModel
+from .base import Base, BaseTenantModel
 
 
 class TenantPlan(str, enum.Enum):
@@ -107,7 +107,8 @@ class Tenant(Base):
         default=lambda: {},
         comment="Tenant-specific configuration settings"
     )
-    metadata = Column(
+    custom_metadata = Column(
+        "metadata",  # Column name in database
         JSONB,
         default=lambda: {},
         comment="Custom metadata"
@@ -366,7 +367,8 @@ class Company(Base):
     )
 
     # Metadata
-    metadata = Column(
+    custom_metadata = Column(
+        "metadata",  # Column name in database
         JSONB,
         default=lambda: {},
     )

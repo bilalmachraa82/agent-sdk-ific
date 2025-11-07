@@ -1,0 +1,119 @@
+"""Create file storage tables
+
+Revision ID: <will_be_generated>
+Revises: <previous_revision>
+Create Date: <will_be_generated>
+
+Creates tables for file storage:
+- files: Stores metadata for uploaded files
+- file_access_logs: Audit log for file operations
+"""
+
+from alembic import op
+import sqlalchemy as sa
+from sqlalchemy.dialects import postgresql
+
+# revision identifiers, used by Alembic.
+revision = '<will_be_generated_by_alembic>'
+down_revision = '<previous_revision_id>'
+branch_labels = None
+depends_on = None
+
+
+def upgrade():
+    """Create file storage tables."""
+
+    # Create files table
+    op.create_table(
+        'files',
+        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('tenant_id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('file_name', sa.String(length=255), nullable=False),
+        sa.Column('file_type', sa.String(length=50), nullable=False),
+        sa.Column('file_extension', sa.String(length=10), nullable=False),
+        sa.Column('mime_type', sa.String(length=100), nullable=False),
+        sa.Column('file_size_bytes', sa.Integer(), nullable=False),
+        sa.Column('encrypted_size_bytes', sa.Integer(), nullable=False),
+        sa.Column('sha256_hash', sa.String(length=64), nullable=False),
+        sa.Column('storage_path', sa.String(length=500), nullable=False),
+        sa.Column('storage_backend', sa.String(length=20), nullable=False),
+        sa.Column('is_encrypted', sa.Boolean(), nullable=False, server_default='true'),
+        sa.Column('upload_timestamp', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
+        sa.Column('uploaded_by_user_id', postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column('metadata', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column('is_deleted', sa.Boolean(), nullable=False, server_default='false'),
+        sa.Column('deleted_at', sa.DateTime(timezone=True), nullable=True),
+        sa.Column('deleted_by_user_id', postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column('last_accessed_at', sa.DateTime(timezone=True), nullable=True),
+        sa.Column('access_count', sa.Integer(), nullable=False, server_default='0'),
+        sa.Column('retention_until', sa.DateTime(timezone=True), nullable=True),
+        sa.Column('compliance_tags', postgresql.JSONB(astext_type=sa.Text()), nullable=True),
+        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
+        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
+        sa.PrimaryKeyConstraint('id'),
+        sa.UniqueConstraint('storage_path'),
+        comment='File storage metadata with encryption and multi-tenant isolation'
+    )
+
+    # Create indexes for files table
+    op.create_index('idx_files_tenant_created', 'files', ['tenant_id', 'created_at'], postgresql_using='btree')
+    op.create_index('idx_files_file_name', 'files', ['file_name'])
+    op.create_index('idx_files_file_type', 'files', ['file_type'])
+    op.create_index('idx_files_sha256_hash', 'files', ['sha256_hash'])
+    op.create_index('idx_files_uploaded_by_user_id', 'files', ['uploaded_by_user_id'])
+    op.create_index('idx_files_is_deleted', 'files', ['is_deleted'])
+    op.create_index('idx_files_upload_timestamp', 'files', ['upload_timestamp'])
+
+    # Create file_access_logs table
+    op.create_table(
+        'file_access_logs',
+        sa.Column('id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('tenant_id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('file_id', postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column('access_type', sa.String(length=50), nullable=False),
+        sa.Column('user_id', postgresql.UUID(as_uuid=True), nullable=True),
+        sa.Column('ip_address', sa.String(length=45), nullable=True),
+        sa.Column('user_agent', sa.String(length=500), nullable=True),
+        sa.Column('success', sa.Boolean(), nullable=False, server_default='true'),
+        sa.Column('error_message', sa.Text(), nullable=True),
+        sa.Column('access_timestamp', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
+        sa.Column('created_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
+        sa.Column('updated_at', sa.DateTime(timezone=True), nullable=False, server_default=sa.text('now()')),
+        sa.PrimaryKeyConstraint('id'),
+        comment='Audit log for file access events'
+    )
+
+    # Create indexes for file_access_logs table
+    op.create_index('idx_file_access_logs_tenant_created', 'file_access_logs', ['tenant_id', 'created_at'], postgresql_using='btree')
+    op.create_index('idx_file_access_logs_file_id', 'file_access_logs', ['file_id'])
+    op.create_index('idx_file_access_logs_user_id', 'file_access_logs', ['user_id'])
+    op.create_index('idx_file_access_logs_access_type', 'file_access_logs', ['access_type'])
+    op.create_index('idx_file_access_logs_access_timestamp', 'file_access_logs', ['access_timestamp'])
+
+    # Add foreign key constraints (if tenants/users tables exist)
+    # op.create_foreign_key('fk_files_tenant_id', 'files', 'tenants', ['tenant_id'], ['id'], ondelete='CASCADE')
+    # op.create_foreign_key('fk_file_access_logs_tenant_id', 'file_access_logs', 'tenants', ['tenant_id'], ['id'], ondelete='CASCADE')
+    # op.create_foreign_key('fk_file_access_logs_file_id', 'file_access_logs', 'files', ['file_id'], ['id'], ondelete='CASCADE')
+
+
+def downgrade():
+    """Drop file storage tables."""
+
+    # Drop indexes
+    op.drop_index('idx_file_access_logs_access_timestamp', table_name='file_access_logs')
+    op.drop_index('idx_file_access_logs_access_type', table_name='file_access_logs')
+    op.drop_index('idx_file_access_logs_user_id', table_name='file_access_logs')
+    op.drop_index('idx_file_access_logs_file_id', table_name='file_access_logs')
+    op.drop_index('idx_file_access_logs_tenant_created', table_name='file_access_logs')
+
+    op.drop_index('idx_files_upload_timestamp', table_name='files')
+    op.drop_index('idx_files_is_deleted', table_name='files')
+    op.drop_index('idx_files_uploaded_by_user_id', table_name='files')
+    op.drop_index('idx_files_sha256_hash', table_name='files')
+    op.drop_index('idx_files_file_type', table_name='files')
+    op.drop_index('idx_files_file_name', table_name='files')
+    op.drop_index('idx_files_tenant_created', table_name='files')
+
+    # Drop tables
+    op.drop_table('file_access_logs')
+    op.drop_table('files')

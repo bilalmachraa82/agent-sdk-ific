@@ -15,7 +15,7 @@ from sqlalchemy.pool import NullPool, QueuePool
 from sqlalchemy import text, event
 import logging
 
-from backend.core.config import settings
+from .config import settings
 
 logger = logging.getLogger(__name__)
 
