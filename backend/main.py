@@ -9,10 +9,10 @@ from typing import AsyncGenerator
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from prometheus_fastapi_instrumentator import Instrumentator
+# from prometheus_fastapi_instrumentator import Instrumentator  # TODO: Add when needed
 
 from backend.core.config import settings
-from backend.core.database import engine, Base
+from backend.core.database import db_manager, initialize_database, close_database
 from backend.core.middleware import (
     TenantMiddleware,
     RateLimitMiddleware,
@@ -37,11 +37,9 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
                 environment=settings.environment,
                 version=settings.app_version)
 
-    # Create database tables if not exist (dev only)
-    if settings.environment == "development":
-        async with engine.begin() as conn:
-            await conn.run_sync(Base.metadata.create_all)
-            logger.info("Database tables created/verified")
+    # Initialize database connection pool
+    await initialize_database()
+    logger.info("Database connection pool initialized")
 
     # Initialize vector store connection
     # await qdrant_service.initialize()
@@ -53,7 +51,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
 
     # Shutdown
     logger.info("Shutting down EVF Portugal 2030 Backend")
-    await engine.dispose()
+    await close_database()
 
 
 # Create FastAPI application
@@ -77,21 +75,27 @@ app.add_middleware(
     expose_headers=["X-Total-Count", "X-Request-ID"],
 )
 
-# Add security headers
+# IMPORTANT: Middleware order follows OWASP 2025 recommendations
+# Execution order: last added = first executed (stack pattern)
+# So we add in REVERSE order: Headers → Rate Limit → Audit → Tenant
+
+# 4. Add security headers (outermost - applies to all responses)
 app.add_middleware(SecurityHeadersMiddleware)
 
-# Add rate limiting
+# 3. Add rate limiting (requires Redis - will add later)
+# app.add_middleware(
+#     RateLimitMiddleware,
+#     redis_client=redis_client  # TODO: Initialize Redis client
+# )
+
+# 2. Add audit logging (after tenant context is set)
 app.add_middleware(
-    RateLimitMiddleware,
-    max_requests=100,
-    window_seconds=60
+    AuditMiddleware,
+    db_session_factory=lambda: db_manager.get_db_context()
 )
 
-# Add tenant isolation middleware
+# 1. Add tenant isolation (innermost - must run first to set context)
 app.add_middleware(TenantMiddleware)
-
-# Add audit logging middleware
-app.add_middleware(AuditMiddleware)
 
 # Setup Prometheus metrics (if needed in future)
 # instrumentator = Instrumentator()

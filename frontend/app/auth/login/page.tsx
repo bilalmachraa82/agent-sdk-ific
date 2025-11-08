@@ -49,9 +49,29 @@ export default function LoginPage() {
       // Redirect to dashboard
       router.push('/dashboard');
     } catch (err: any) {
-      setError(
-        err.response?.data?.detail || 'Credenciais inválidas. Por favor, tente novamente.'
-      );
+      // Handle different error formats
+      let errorMessage = 'Credenciais inválidas. Por favor, tente novamente.';
+
+      if (err.response?.data) {
+        const data = err.response.data;
+
+        // Handle Pydantic validation errors (array of objects)
+        if (Array.isArray(data.detail)) {
+          errorMessage = data.detail.map((e: any) => e.msg || e).join(', ');
+        }
+        // Handle simple detail string
+        else if (typeof data.detail === 'string') {
+          errorMessage = data.detail;
+        }
+        // Handle object detail
+        else if (typeof data.detail === 'object' && data.detail !== null) {
+          errorMessage = JSON.stringify(data.detail);
+        }
+      } else if (err.message) {
+        errorMessage = err.message;
+      }
+
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }

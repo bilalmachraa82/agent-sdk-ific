@@ -23,8 +23,10 @@ class BaseTenantModel:
     @declared_attr
     def tenant_id(cls):
         """UUID reference to the tenant owning this record."""
+        from sqlalchemy import ForeignKey
         return Column(
             UUID(as_uuid=True),
+            ForeignKey("tenants.id", ondelete="CASCADE"),
             nullable=False,
             index=True,
             comment="Tenant ID for multi-tenant isolation"

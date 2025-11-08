@@ -26,8 +26,8 @@ async def health_check(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
     return {
         "status": "healthy",
         "timestamp": datetime.utcnow().isoformat(),
-        "version": settings.VERSION,
-        "environment": settings.ENVIRONMENT,
+        "version": settings.app_version,
+        "environment": settings.environment,
         "service": "evf-backend"
     }
 
@@ -55,7 +55,7 @@ async def readiness_check(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
         errors.append(f"Database: {str(e)}")
 
     # Check Redis connection (if configured)
-    if settings.REDIS_URL:
+    if settings.redis_url:
         try:
             # TODO: Implement Redis health check
             checks["cache"] = True
@@ -64,7 +64,7 @@ async def readiness_check(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
             errors.append(f"Redis: {str(e)}")
 
     # Check Qdrant connection (if configured)
-    if settings.QDRANT_URL:
+    if settings.qdrant_url:
         try:
             # TODO: Implement Qdrant health check
             checks["vector_store"] = True
@@ -126,6 +126,6 @@ async def health_metrics(db: AsyncSession = Depends(get_db)) -> Dict[str, Any]:
     return {
         "timestamp": datetime.utcnow().isoformat(),
         "metrics": metrics,
-        "version": settings.VERSION,
-        "environment": settings.ENVIRONMENT
+        "version": settings.app_version,
+        "environment": settings.environment
     }

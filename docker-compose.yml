@@ -1,0 +1,143 @@
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:16-alpine
+    container_name: evf-postgres
+    environment:
+      POSTGRES_USER: evf_user
+      POSTGRES_PASSWORD: evf_password
+      POSTGRES_DB: evf_portugal_2030
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=en_US.UTF-8"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./backend/init_db.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U evf_user -d evf_portugal_2030"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - evf-network
+    restart: unless-stopped
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: evf-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - evf-network
+    restart: unless-stopped
+
+  # Backend API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: evf-backend
+    environment:
+      - ENVIRONMENT=development
+      - DATABASE_URL=postgresql+asyncpg://evf_user:evf_password@postgres:5432/evf_portugal_2030
+      - REDIS_URL=redis://redis:6379/0
+      - API_HOST=0.0.0.0
+      - API_PORT=8000
+      - SECRET_KEY=${SECRET_KEY:-your-secret-key-change-in-production}
+      - CLAUDE_API_KEY=${CLAUDE_API_KEY}
+      - QDRANT_URL=${QDRANT_URL:-http://localhost:6333}
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - S3_ACCESS_KEY=${S3_ACCESS_KEY}
+      - S3_SECRET_KEY=${S3_SECRET_KEY}
+      - ENCRYPTION_KEY=${ENCRYPTION_KEY}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - backend_storage:/app/storage
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    networks:
+      - evf-network
+    restart: unless-stopped
+    command: >
+      sh -c "
+        alembic upgrade head &&
+        python seed_data.py &&
+        uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+      "
+
+  # Frontend (Next.js)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: evf-frontend
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+      - NEXT_PUBLIC_API_PREFIX=/api/v1
+      - NEXT_PUBLIC_APP_NAME=EVF Portugal 2030
+      - NEXT_PUBLIC_ENVIRONMENT=development
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+      - /app/.next
+    depends_on:
+      - backend
+    networks:
+      - evf-network
+    restart: unless-stopped
+    command: npm run dev
+
+  # Qdrant Vector Database (Optional - for local development)
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: evf-qdrant
+    ports:
+      - "6333:6333"
+      - "6334:6334"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+    networks:
+      - evf-network
+    restart: unless-stopped
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
+    name: evf-postgres-data
+  redis_data:
+    name: evf-redis-data
+  backend_storage:
+    name: evf-backend-storage
+  qdrant_data:
+    name: evf-qdrant-data
+
+networks:
+  evf-network:
+    name: evf-network
+    driver: bridge

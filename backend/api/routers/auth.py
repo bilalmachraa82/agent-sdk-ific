@@ -15,8 +15,8 @@ from backend.core.database import get_db
 from backend.core.security import (
     create_access_token,
     create_refresh_token,
-    verify_password,
-    get_password_hash,
+    async_verify_password,
+    async_get_password_hash,
     decode_token
 )
 from backend.core.config import settings
@@ -140,7 +140,7 @@ async def register(
         user = User(
             email=user_data.email,
             full_name=user_data.full_name,
-            password_hash=get_password_hash(user_data.password),
+            password_hash=await async_get_password_hash(user_data.password),
             tenant_id=tenant.id,
             role="admin",
             is_active=True
@@ -199,7 +199,7 @@ async def login(
     user = result.scalar_one_or_none()
 
     # Verify user and password
-    if not user or not verify_password(form_data.password, user.password_hash):
+    if not user or not await async_verify_password(form_data.password, user.password_hash):
         logger.warning(
             "Failed login attempt",
             email=form_data.username
@@ -349,14 +349,14 @@ async def change_password(
     """
 
     # Verify current password
-    if not verify_password(current_password, current_user.password_hash):
+    if not await async_verify_password(current_password, current_user.password_hash):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Incorrect current password"
         )
 
     # Update password
-    current_user.password_hash = get_password_hash(new_password)
+    current_user.password_hash = await async_get_password_hash(new_password)
     current_user.password_changed_at = datetime.utcnow()
     await db.commit()
 

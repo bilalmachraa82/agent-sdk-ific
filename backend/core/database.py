@@ -33,35 +33,36 @@ class AsyncDatabaseManager:
         if self._initialized:
             return
 
-        # Determine pool class based on environment
-        pool_class = NullPool if settings.environment == "development" else QueuePool
+        # Create async engine with pooling configuration
+        engine_kwargs = {
+            "echo": settings.database_echo,
+        }
+
+        # Use NullPool for development, QueuePool with settings for production
+        if settings.environment == "development":
+            engine_kwargs["poolclass"] = NullPool
+        else:
+            engine_kwargs.update({
+                "pool_size": settings.database_min_pool_size,
+                "max_overflow": settings.database_max_pool_size - settings.database_min_pool_size,
+                "pool_timeout": settings.database_pool_timeout,
+                "pool_recycle": settings.database_pool_recycle,
+            })
 
         self.engine = create_async_engine(
             settings.database_url,
-            echo=settings.database_echo,
-            pool_class=pool_class,
-            pool_size=settings.database_min_pool_size,
-            max_overflow=settings.database_max_pool_size - settings.database_min_pool_size,
-            pool_timeout=settings.database_pool_timeout,
-            pool_recycle=settings.database_pool_recycle,
-            connect_args={
-                "timeout": 30,
-                "server_settings": {
-                    "application_name": f"{settings.app_name}/{settings.app_version}",
-                },
-            },
+            **engine_kwargs
         )
 
-        # Attach RLS enforcement to new connections
-        @event.listens_for(self.engine, "connect")
-        async def set_rls_context(dbapi_conn, connection_record):
+        # Attach RLS enforcement to new connections (use sync_engine for async engines)
+        @event.listens_for(self.engine.sync_engine, "connect")
+        def set_rls_context(dbapi_conn, connection_record):
             """Set RLS context and enforce Row-Level Security on connection."""
-            # Enable RLS enforcement
-            await dbapi_conn.execute(text("SET row_security = on;"))
-            # Set application role
-            await dbapi_conn.execute(
-                text(f"SET app.application_name = '{settings.app_name}';")
-            )
+            # Enable RLS enforcement (use synchronous execute for connection events)
+            cursor = dbapi_conn.cursor()
+            cursor.execute("SET row_security = on;")
+            cursor.execute(f"SET app.application_name = '{settings.app_name}';")
+            cursor.close()
 
         self.async_session_maker = async_sessionmaker(
             self.engine,
@@ -108,10 +109,11 @@ class AsyncDatabaseManager:
         """
         Set the tenant context for Row-Level Security.
         Must be called after getting a session.
+        Uses parameterized query to prevent SQL injection.
         """
         try:
             await session.execute(
-                text(f"SET app.current_tenant = '{tenant_id}'::uuid;")
+                text("SET app.current_tenant = :tenant_id::uuid").bindparams(tenant_id=tenant_id)
             )
             logger.debug(f"Tenant context set to: {tenant_id}")
         except Exception as e:
@@ -133,9 +135,39 @@ db_manager = AsyncDatabaseManager()
 
 
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    """Dependency for FastAPI routes to get database session."""
+    """
+    Dependency for FastAPI routes to get database session.
+    Note: Does NOT set tenant context - use get_db_with_tenant for RLS enforcement.
+    """
     async for session in db_manager.get_session():
         yield session
+
+
+async def get_db_with_tenant(request) -> AsyncGenerator[AsyncSession, None]:
+    """
+    Dependency for FastAPI routes with tenant RLS context.
+    Automatically sets app.current_tenant for Row-Level Security.
+
+    Usage in routes:
+        @router.get("/evf")
+        async def list_evfs(db: AsyncSession = Depends(get_db_with_tenant)):
+            # All queries here are automatically filtered by tenant_id
+            pass
+    """
+    async for session in db_manager.get_session():
+        # Extract tenant_id from request state (set by TenantMiddleware)
+        tenant_id = getattr(request.state, "tenant_id", None)
+
+        if tenant_id:
+            # Set RLS context for this session
+            await db_manager.set_tenant_context(session, tenant_id)
+
+        try:
+            yield session
+        finally:
+            # Clear tenant context after request
+            if tenant_id:
+                await db_manager.clear_tenant_context(session)
 
 
 async def initialize_database():

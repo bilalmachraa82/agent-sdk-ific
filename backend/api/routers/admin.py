@@ -141,7 +141,7 @@ async def create_user(
         )
 
     # Create new user
-    from backend.core.security import get_password_hash
+    from backend.core.security import async_get_password_hash
     import secrets
 
     # Generate random password
@@ -150,7 +150,7 @@ async def create_user(
     user = User(
         email=email,
         full_name=full_name,
-        password_hash=get_password_hash(temp_password),
+        password_hash=await async_get_password_hash(temp_password),
         role=role,
         tenant_id=admin_user.tenant_id,
         is_active=True

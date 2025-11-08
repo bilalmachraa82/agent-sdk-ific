@@ -1,321 +1,52 @@
 {
   "version": "1.0.0",
-  "last_updated": "2025-01-15",
-  "description": "Portuguese PT2030/PRR/SITCE funding compliance rules",
+  "last_updated": "2025-01-07",
+  "description": "PT2030 funding program compliance rules for EVF validation",
   "programs": {
     "PT2030": {
       "name": "Portugal 2030",
-      "description": "Main EU structural funds program for Portugal 2021-2030",
       "financial_requirements": {
         "valf_max": 0,
-        "valf_description": "VALF (NPV) must be negative (< 0) - project not viable without EU funding",
+        "valf_description": "VALF must be negative",
         "trf_max_percent": 4.0,
-        "trf_description": "TRF (IRR) must be less than discount rate (typically 4%)",
-        "discount_rate": 4.0,
-        "minimum_investment": 5000,
+        "trf_description": "TRF must be less than 4%",
+        "minimum_investment": 50000,
         "maximum_investment": 15000000
       },
       "funding_rates": {
+        "micro_enterprise_max_percent": 50,
+        "small_enterprise_max_percent": 50,
+        "medium_enterprise_max_percent": 40,
+        "large_enterprise_max_percent": 30,
         "default_max_percent": 50,
-        "micro_enterprise_max_percent": 60,
-        "small_enterprise_max_percent": 55,
-        "medium_enterprise_max_percent": 50,
-        "large_enterprise_max_percent": 40,
-        "innovation_bonus_percent": 15,
-        "digitalization_bonus_percent": 10,
-        "sustainability_bonus_percent": 10,
-        "max_total_percent": 75
+        "max_total_percent": 75,
+        "innovation_bonus_percent": 10,
+        "digitalization_bonus_percent": 5,
+        "sustainability_bonus_percent": 5
       },
       "company_size_criteria": {
-        "micro": {
-          "employees_max": 9,
-          "turnover_max": 2000000,
-          "balance_sheet_max": 2000000
-        },
-        "small": {
-          "employees_max": 49,
-          "turnover_max": 10000000,
-          "balance_sheet_max": 10000000
-        },
-        "medium": {
-          "employees_max": 249,
-          "turnover_max": 50000000,
-          "balance_sheet_max": 43000000
-        },
-        "large": {
-          "employees_min": 250,
-          "turnover_min": 50000001,
-          "balance_sheet_min": 43000001
-        }
+        "micro": {"employees_max": 10, "turnover_max": 2000000},
+        "small": {"employees_max": 50, "turnover_max": 10000000},
+        "medium": {"employees_max": 250, "turnover_max": 50000000}
       },
-      "eligible_investments": [
-        "equipment_acquisition",
-        "production_machinery",
-        "it_infrastructure",
-        "software_licenses",
-        "building_construction",
-        "facility_renovation",
-        "rd_equipment",
-        "digitalization_tools",
-        "automation_systems",
-        "renewable_energy",
-        "energy_efficiency",
-        "environmental_equipment"
-      ],
-      "ineligible_investments": [
-        "land_purchase",
-        "working_capital",
-        "financial_costs",
-        "luxury_goods",
-        "marketing_campaigns",
-        "routine_maintenance",
-        "second_hand_equipment"
-      ],
+      "eligible_investments": ["equipment", "software", "training"],
+      "ineligible_investments": ["land_acquisition", "financial_costs"],
       "sector_priorities": {
-        "high_priority": [
-          "manufacturing",
-          "renewable_energy",
-          "biotechnology",
-          "ict",
-          "tourism_innovation"
-        ],
-        "medium_priority": [
-          "agriculture",
-          "fisheries",
-          "forestry",
-          "creative_industries"
-        ],
-        "low_priority": [
-          "retail",
-          "restaurants",
-          "real_estate"
-        ],
-        "excluded_sectors": [
-          "gambling",
-          "tobacco",
-          "arms_manufacturing",
-          "adult_entertainment"
-        ]
+        "high_priority": ["manufacturing", "ict"],
+        "excluded_sectors": ["gambling", "tobacco"]
       },
       "regional_incentives": {
-        "norte": {
-          "bonus_percent": 5,
-          "regions": ["Porto", "Braga", "Viana do Castelo", "Bragança", "Vila Real"]
-        },
-        "centro": {
-          "bonus_percent": 5,
-          "regions": ["Coimbra", "Aveiro", "Viseu", "Guarda", "Castelo Branco", "Leiria"]
-        },
-        "alentejo": {
-          "bonus_percent": 10,
-          "regions": ["Évora", "Beja", "Portalegre", "Setúbal"]
-        },
-        "algarve": {
-          "bonus_percent": 5,
-          "regions": ["Faro"]
-        },
-        "lisboa": {
-          "bonus_percent": 0,
-          "regions": ["Lisboa"]
-        },
-        "acores": {
-          "bonus_percent": 15,
-          "regions": ["Açores"]
-        },
-        "madeira": {
-          "bonus_percent": 15,
-          "regions": ["Madeira"]
-        }
+        "norte": {"regions": ["Porto"], "bonus_percent": 5}
       },
-      "environmental_criteria": {
-        "minimum_sustainability_score": 30,
-        "dnsh_compliance_required": true,
-        "dnsh_description": "Do No Significant Harm - project must not harm environmental objectives",
-        "green_transition_bonus_percent": 10,
-        "circular_economy_bonus_percent": 5
-      },
-      "social_criteria": {
-        "minimum_job_creation": 1,
-        "youth_employment_bonus_percent": 5,
-        "gender_equality_required": true,
-        "accessibility_compliance_required": true
-      },
-      "deadlines": {
-        "application_window_open": "2024-01-01",
-        "application_window_close": "2029-12-31",
-        "project_completion_deadline": "2030-12-31"
-      }
-    },
-    "PRR": {
-      "name": "Plano de Recuperação e Resiliência",
-      "description": "Recovery and Resilience Plan - NextGenerationEU funds",
-      "financial_requirements": {
-        "valf_max": 0,
-        "valf_description": "VALF (NPV) must be negative or zero",
-        "trf_max_percent": 5.0,
-        "trf_description": "TRF (IRR) must be less than 5% for PRR",
-        "discount_rate": 5.0,
-        "minimum_investment": 10000,
-        "maximum_investment": 50000000
-      },
-      "funding_rates": {
-        "default_max_percent": 85,
-        "public_sector_max_percent": 100,
-        "private_sector_max_percent": 85,
-        "non_refundable_max_percent": 85
-      },
-      "priority_areas": [
-        "climate_transition",
-        "digital_transition",
-        "resilience",
-        "social_cohesion"
-      ],
-      "thematic_components": {
-        "C01_resilience": {
-          "description": "Health system resilience",
-          "allocation_millions": 2200
-        },
-        "C05_capitalism": {
-          "description": "Capitalization and business innovation",
-          "allocation_millions": 1390
-        },
-        "C14_forest": {
-          "description": "Forest management",
-          "allocation_millions": 615
-        },
-        "C16_climate": {
-          "description": "Climate action and sustainability",
-          "allocation_millions": 610
-        },
-        "C17_efficiency": {
-          "description": "Energy efficiency in buildings",
-          "allocation_millions": 610
-        },
-        "C19_hydrogen": {
-          "description": "Renewable hydrogen and renewables",
-          "allocation_millions": 185
-        }
-      },
-      "digital_transition_requirements": {
-        "minimum_investment_percent": 20,
-        "eligible_activities": [
-          "cloud_migration",
-          "ai_implementation",
-          "cybersecurity",
-          "data_analytics",
-          "digital_skills_training"
-        ]
-      },
-      "green_transition_requirements": {
-        "minimum_investment_percent": 37,
-        "eligible_activities": [
-          "renewable_energy",
-          "energy_efficiency",
-          "sustainable_mobility",
-          "circular_economy",
-          "biodiversity"
-        ]
-      },
-      "deadlines": {
-        "application_window_close": "2025-12-31",
-        "project_completion_deadline": "2026-08-31"
-      }
-    },
-    "SITCE": {
-      "name": "Sistema de Incentivos à Transformação Competitiva Empresarial",
-      "description": "Business competitiveness transformation incentives",
-      "financial_requirements": {
-        "valf_max": 0,
-        "valf_description": "VALF must be negative for non-refundable incentives",
-        "trf_max_percent": 4.0,
-        "trf_description": "TRF (IRR) must be less than discount rate (4%)",
-        "discount_rate": 4.0,
-        "minimum_investment": 25000,
-        "maximum_investment": 10000000
-      },
-      "funding_rates": {
-        "micro_max_percent": 50,
-        "small_max_percent": 45,
-        "medium_max_percent": 35,
-        "large_max_percent": 25,
-        "innovation_bonus_percent": 10,
-        "max_total_percent": 60
-      },
-      "intervention_typologies": {
-        "innovation": {
-          "description": "Innovation and industrial property",
-          "min_investment": 25000,
-          "max_investment": 10000000,
-          "rd_minimum_percent": 25
-        },
-        "internationalization": {
-          "description": "Internationalization",
-          "min_investment": 25000,
-          "max_investment": 3000000,
-          "export_markets_minimum": 2
-        },
-        "entrepreneurship": {
-          "description": "Qualified entrepreneurship",
-          "min_investment": 25000,
-          "max_investment": 500000,
-          "company_age_max_years": 3
-        }
-      },
-      "eligible_costs": [
-        "equipment",
-        "software",
-        "patents",
-        "consulting",
-        "training",
-        "certifications",
-        "market_studies"
-      ],
-      "performance_indicators": {
-        "turnover_increase_min_percent": 10,
-        "export_increase_min_percent": 15,
-        "jobs_created_minimum": 2,
-        "gva_increase_min_percent": 8
-      }
+      "environmental_criteria": {"dnsh_compliance_required": true},
+      "social_criteria": {"minimum_job_creation": 0}
     }
   },
   "common_exclusions": {
-    "excluded_companies": [
-      "companies_in_difficulty",
-      "bankruptcy_proceedings",
-      "tax_debt",
-      "social_security_debt",
-      "previous_fraud"
-    ],
-    "excluded_activities": [
-      "financial_services",
-      "gambling",
-      "tobacco",
-      "weapons",
-      "real_estate_speculation"
-    ]
-  },
-  "compliance_checks": {
-    "mandatory": [
-      "financial_viability",
-      "company_eligibility",
-      "investment_eligibility",
-      "funding_rate_limits",
-      "sector_eligibility",
-      "environmental_compliance",
-      "state_aid_rules"
-    ],
-    "recommended": [
-      "regional_bonus_optimization",
-      "innovation_bonus_eligibility",
-      "job_creation_targets",
-      "sustainability_score"
-    ]
-  },
-  "state_aid_rules": {
-    "de_minimis_max_3years": 200000,
-    "de_minimis_transport_max_3years": 100000,
-    "de_minimis_agriculture_max_3years": 20000,
-    "gber_notification_threshold": 7500000,
-    "cumulation_rules_apply": true
+    "excluded_companies": {
+      "companies_in_difficulty": true,
+      "tax_debt": true,
+      "social_security_debt": true
+    }
   }
 }

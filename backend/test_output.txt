@@ -1,0 +1,114 @@
+/Users/bilal/Library/Python/3.9/lib/python/site-packages/pytest_asyncio/plugin.py:208: PytestDeprecationWarning: The configuration option "asyncio_default_fixture_loop_scope" is unset.
+The event loop scope for asynchronous fixtures will default to the fixture caching scope. Future versions of pytest-asyncio will default the loop scope for asynchronous fixtures to function scope. Set the default fixture loop scope explicitly in order to avoid unexpected behavior in the future. Valid fixture loop scopes are: "function", "class", "module", "package", "session"
+
+  warnings.warn(PytestDeprecationWarning(_DEFAULT_FIXTURE_LOOP_SCOPE_UNSET))
+============================= test session starts ==============================
+platform darwin -- Python 3.9.6, pytest-8.3.3, pluggy-1.6.0 -- /Library/Developer/CommandLineTools/usr/bin/python3
+cachedir: .pytest_cache
+rootdir: /Users/bilal/Programaçao/Agent SDK - IFIC/backend
+configfile: pyproject.toml
+testpaths: tests
+plugins: asyncio-0.24.0, cov-5.0.0, anyio-3.7.1, Faker-30.8.2, mock-3.14.0
+asyncio: mode=auto, default_loop_scope=None
+collecting ... collected 94 items / 1 error
+
+==================================== ERRORS ====================================
+_________________ ERROR collecting tests/test_file_storage.py __________________
+ImportError while importing test module '/Users/bilal/Programaçao/Agent SDK - IFIC/backend/tests/test_file_storage.py'.
+Hint: make sure your test modules/packages have valid Python names.
+Traceback:
+../../../Library/Python/3.9/lib/python/site-packages/_pytest/python.py:493: in importtestmodule
+    mod = import_path(
+../../../Library/Python/3.9/lib/python/site-packages/_pytest/pathlib.py:582: in import_path
+    importlib.import_module(module_name)
+/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/importlib/__init__.py:127: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+<frozen importlib._bootstrap>:1030: in _gcd_import
+    ???
+<frozen importlib._bootstrap>:1007: in _find_and_load
+    ???
+<frozen importlib._bootstrap>:986: in _find_and_load_unlocked
+    ???
+<frozen importlib._bootstrap>:680: in _load_unlocked
+    ???
+../../../Library/Python/3.9/lib/python/site-packages/_pytest/assertion/rewrite.py:184: in exec_module
+    exec(co, module.__dict__)
+tests/test_file_storage.py:16: in <module>
+    from backend.services.file_storage import (
+../../../Programaçao/Agent SDK - IFIC/backend/services/file_storage.py:23: in <module>
+    from backend.core.encryption import encryption_manager
+../../../Programaçao/Agent SDK - IFIC/backend/core/encryption.py:10: in <module>
+    from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
+E   ImportError: cannot import name 'PBKDF2' from 'cryptography.hazmat.primitives.kdf.pbkdf2' (/Users/bilal/Library/Python/3.9/lib/python/site-packages/cryptography/hazmat/primitives/kdf/pbkdf2.py)
+=============================== warnings summary ===============================
+../../../Library/Python/3.9/lib/python/site-packages/pydantic/_internal/_fields.py:132
+  /Users/bilal/Library/Python/3.9/lib/python/site-packages/pydantic/_internal/_fields.py:132: UserWarning: Field "model_used" in NarrativeOutput has conflict with protected namespace "model_".
+  
+  You may be able to resolve this warning by setting `model_config['protected_namespaces'] = ()`.
+    warnings.warn(
+
+../../../Library/Python/3.9/lib/python/site-packages/pydantic/fields.py:826: 42 warnings
+  /Users/bilal/Library/Python/3.9/lib/python/site-packages/pydantic/fields.py:826: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'env'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warn(
+
+../../../Library/Python/3.9/lib/python/site-packages/pydantic/_internal/_config.py:291
+  /Users/bilal/Library/Python/3.9/lib/python/site-packages/pydantic/_internal/_config.py:291: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.9/migration/
+    warnings.warn(DEPRECATION_MESSAGE, DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+
+---------- coverage: platform darwin, python 3.9.6-final-0 -----------
+Name                                   Stmts   Miss  Cover   Missing
+--------------------------------------------------------------------
+agents/__init__.py                         5      0   100%
+agents/audit_agent.py                    322    322     0%   9-843
+agents/compliance_agent.py               336    230    32%   101-104, 174-179, 183-187, 199-237, 254-303, 307-374, 378-410, 414-450, 454-492, 496-531, 535-583, 587-623, 627-649, 658-707, 713-781, 792-822
+agents/compliance_example.py             101    101     0%   7-285
+agents/financial_agent.py                166     95    43%   32, 37, 43, 64-67, 73-76, 142, 158-193, 213-224, 235-236, 246-257, 265-277, 284-314, 337-364, 371-375, 384-405
+agents/input_agent.py                    322    195    39%   62-67, 80-83, 88, 103, 108, 113, 146, 151, 156, 183, 188, 287-289, 301-335, 352-410, 424-434, 439-495, 509-528, 536-587, 599-681, 694-723, 727-733, 737-743, 747, 756-779
+agents/input_agent_example.py            144    144     0%   9-338
+agents/narrative_agent.py                196    101    48%   131-138, 185-201, 222-290, 298, 312-348, 362-391, 405-434, 439-484, 489-529, 534-572, 577-581, 586-588, 593-594, 601, 605, 617-618, 622-624
+core/__init__.py                           0      0   100%
+core/config.py                            94     94     0%   6-143
+core/database.py                          67     67     0%   6-148
+core/encryption.py                        78     78     0%   6-192
+core/logging.py                           50     50     0%   6-217
+core/middleware.py                        61     61     0%   5-146
+core/security.py                          46     46     0%   5-109
+core/tenant.py                            65     65     0%   6-147
+main.py                                   45     45     0%   6-184
+models/__init__.py                         5      5     0%   6-11
+models/audit.py                            2      2     0%   5-7
+models/base.py                            43     43     0%   6-145
+models/evf.py                            119    119     0%   6-526
+models/file.py                            43     43     0%   6-256
+models/tenant.py                          98     98     0%   5-432
+models/user.py                             2      2     0%   5-7
+schemas/__init__.py                        0      0   100%
+schemas/auth.py                           55     55     0%   5-91
+schemas/evf.py                             0      0   100%
+schemas/file.py                           56     56     0%   5-147
+schemas/tenant.py                          0      0   100%
+services/__init__.py                       4      4     0%   7-19
+services/cache_service.py                132    132     0%   6-366
+services/excel_generator.py              402    402     0%   19-954
+services/file_storage.py                 238    238     0%   6-596
+services/orchestrator.py                 326    326     0%   14-1134
+services/orchestrator_example.py         149    149     0%   7-486
+services/qdrant_service.py               122    122     0%   6-372
+services/test_orchestrator.py            216    216     0%   13-630
+services/validate_file_storage.py        100    100     0%   6-180
+tests/test_compliance_agent.py           201    154    23%   24, 30, 48, 65, 84-88, 92-96, 100-101, 110-124, 129-147, 152-169, 175-190, 195-210, 215-230, 235-250, 255-270, 281-293, 298-318, 324-348, 354-366, 376-389, 395-408, 417-430, 439-453, 459-472, 481-505, 511-536, 545-555, 561-581, 590-606, 610
+tests/test_file_storage.py               213    204     4%   27-589
+tests/test_financial_agent.py            119     93    22%   21, 29, 96, 159-161, 165-172, 176-183, 187-194, 198-205, 209-214, 218-232, 236-243, 247-260, 264-272, 276-279, 283-314, 318-326, 330-346, 358-411
+tests/test_input_agent.py                214    173    19%   45, 150, 170, 184, 205-211, 215-233, 237-247, 251-265, 269-294, 298-310, 314-329, 333-339, 343-349, 353-361, 366-383, 392-401, 409-420, 424-435, 439-448, 452-469, 473-480, 484-489, 494-513, 525-571, 579-606, 610
+tests/test_input_agent_standalone.py      88     58    34%   37, 96-103, 107-115, 119-126, 130-140, 144-159, 164-171, 175-188, 192
+tests/test_narrative_agent.py            276    212    23%   24, 56, 67, 84-90, 98-102, 106-111, 115-126, 130-137, 145-151, 155-168, 172-177, 194-209, 221-232, 244-255, 265-302, 312-338, 344-369, 377-386, 390-399, 403-416, 420-430, 438-449, 453-460, 464-471, 475-487, 495-501, 505-514, 524-547, 553-566, 575-592
+--------------------------------------------------------------------
+TOTAL                                   5321   4700    12%
+Coverage HTML written to dir htmlcov
+
+=========================== short test summary info ============================
+ERROR tests/test_file_storage.py
+!!!!!!!!!!!!!!!!!!!! Interrupted: 1 error during collection !!!!!!!!!!!!!!!!!!!!
+======================== 44 warnings, 1 error in 6.25s =========================

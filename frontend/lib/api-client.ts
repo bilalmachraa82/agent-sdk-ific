@@ -126,13 +126,28 @@ class APIClient {
     }
   }
 
+  getTenant(): string | null {
+    return this.tenantId;
+  }
+
+  getAccessToken(): string | null {
+    return this.accessToken;
+  }
+
+  isAuthenticated(): boolean {
+    return !!this.accessToken && !!this.tenantId;
+  }
+
   async login(email: string, password: string) {
     const response = await this.client.post('/api/v1/auth/login', {
-      email,
+      username: email,  // FastAPI OAuth2 uses 'username' field
       password,
     });
     this.setAccessToken(response.data.access_token);
     this.setTenant(response.data.tenant_id);
+    if (response.data.refresh_token) {
+      localStorage.setItem('refresh_token', response.data.refresh_token);
+    }
     return response.data;
   }
 
@@ -240,6 +255,19 @@ class APIClient {
 
   async deleteEVF(evfId: string): Promise<void> {
     await this.client.delete(`/api/v1/evf/${evfId}`);
+  }
+
+  async startProcessing(evfId: string): Promise<{ status: string; message: string }> {
+    const response = await this.client.post(`/api/v1/evf/${evfId}/process`);
+    return response.data;
+  }
+
+  async createEVF(data: {
+    company_name: string;
+    fund_type: 'PT2030' | 'PRR' | 'SITCE';
+  }): Promise<EVFProject> {
+    const response = await this.client.post('/api/v1/evf', data);
+    return response.data;
   }
 
   // Dashboard stats

@@ -42,13 +42,13 @@ def setup_logging(module_name: str) -> structlog.BoundLogger:
                 CallsiteParameter.FUNC_NAME,
                 CallsiteParameter.LINENO,
             ]
-        ) if settings.ENVIRONMENT == "development" else lambda _, __, event_dict: event_dict,
+        ) if settings.environment == "development" else lambda _, __, event_dict: event_dict,
 
         # Format stack traces
         structlog.processors.format_exc_info,
 
         # Render as JSON in production, console in development
-        structlog.processors.JSONRenderer() if settings.ENVIRONMENT == "production"
+        structlog.processors.JSONRenderer() if settings.environment == "production"
         else structlog.dev.ConsoleRenderer(colors=True)
     ]
 
@@ -56,7 +56,7 @@ def setup_logging(module_name: str) -> structlog.BoundLogger:
     logging.basicConfig(
         format="%(message)s",
         stream=sys.stdout,
-        level=getattr(logging, settings.LOG_LEVEL),
+        level=getattr(logging, settings.log_level.upper()),
     )
 
     # Configure structlog
@@ -89,7 +89,7 @@ def log_event(
 
     # Add common context
     context = {
-        "environment": settings.ENVIRONMENT,
+        "environment": settings.environment,
         "service": "evf-backend",
         **kwargs
     }

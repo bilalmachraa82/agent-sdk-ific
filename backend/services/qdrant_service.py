@@ -9,7 +9,7 @@ from uuid import uuid4
 from datetime import datetime
 import numpy as np
 from qdrant_client import QdrantClient
-from qdrant_client.models import PointStruct, FieldCondition, MatchValue, Filter, Models
+from qdrant_client.models import PointStruct, FieldCondition, MatchValue, Filter
 import hashlib
 
 from backend.core.config import settings

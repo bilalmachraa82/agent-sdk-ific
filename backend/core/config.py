@@ -26,7 +26,10 @@ class Settings(BaseSettings):
     api_host: str = Field(default="0.0.0.0", env="API_HOST")
     api_port: int = Field(default=8000, env="API_PORT")
     api_prefix: str = "/api/v1"
-    api_cors_origins: list = Field(default=["*"], env="CORS_ORIGINS")
+    api_cors_origins: list = Field(
+        default=["http://localhost:3000", "http://localhost:3001"],
+        env="CORS_ORIGINS"
+    )
 
     # Database Configuration
     database_url: str = Field(
@@ -137,6 +140,22 @@ class Settings(BaseSettings):
         # Set Alembic SQLAlchemy URL
         if not self.alembic_sqlalchemy_url:
             self.alembic_sqlalchemy_url = self.database_url
+
+        # Set environment-specific CORS origins if not explicitly configured
+        if self.api_cors_origins == ["http://localhost:3000", "http://localhost:3001"]:
+            if self.environment == "production":
+                # Production: strict allowlist (should be set via env var)
+                self.api_cors_origins = [
+                    "https://evfportugal2030.pt",
+                    "https://www.evfportugal2030.pt",
+                    "https://app.evfportugal2030.pt"
+                ]
+            elif self.environment == "staging":
+                self.api_cors_origins = [
+                    "https://staging.evfportugal2030.pt",
+                    "http://localhost:3000"
+                ]
+            # Development keeps default localhost origins
 
 
 # Global settings instance

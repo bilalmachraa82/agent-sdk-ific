@@ -296,20 +296,20 @@ class FinancialAgent:
         gross_margin = ((total_revenue - total_operating_costs) / total_revenue * 100) if total_revenue > 0 else None
 
         # Operating margin
-        operating_margin = (avg_ebitda / float(avg_revenue) * 100) if avg_revenue > 0 else None
+        operating_margin = (avg_ebitda / avg_revenue * 100) if avg_revenue > 0 else None
 
         # ROI = (Total FCF / Initial Investment) * 100
-        roi = (total_fcf / float(input_data.total_investment) * 100) if input_data.total_investment > 0 else None
+        roi = (total_fcf / input_data.total_investment * 100) if input_data.total_investment > 0 else None
 
         # CAPEX to Revenue ratio
         capex_to_revenue = (total_capex / total_revenue * 100) if total_revenue > 0 else None
 
         # EBITDA Coverage
         total_ebitda = sum(cf.ebitda for cf in operational_cfs)
-        ebitda_coverage = (total_ebitda / float(input_data.total_investment)) if input_data.total_investment > 0 else None
+        ebitda_coverage = (total_ebitda / input_data.total_investment) if input_data.total_investment > 0 else None
 
         # FCF Coverage
-        fcf_coverage = (total_fcf / float(input_data.total_investment)) if input_data.total_investment > 0 else None
+        fcf_coverage = (total_fcf / input_data.total_investment) if input_data.total_investment > 0 else None
 
         return FinancialRatios(
             gross_margin=Decimal(str(round(gross_margin, 2))) if gross_margin is not None else None,

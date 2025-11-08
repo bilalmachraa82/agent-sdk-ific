@@ -7,8 +7,8 @@ import os
 from typing import Optional
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives import hashes
-from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2
-from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.kdf.pbkdf2 import PBKDF2HMAC
+# from cryptography.hazmat.backends import default_backend  # Deprecated in cryptography >= 40
 import base64
 import secrets
 import logging
@@ -42,7 +42,6 @@ class EncryptionManager:
             self.master_key = "test-key-change-in-production"
 
         self.key = self._derive_key(self.master_key)
-        self.backend = default_backend()
 
     def _derive_key(self, password: str, salt: bytes = None) -> tuple:
         """
@@ -54,12 +53,11 @@ class EncryptionManager:
         if salt is None:
             salt = secrets.token_bytes(SALT_SIZE)
 
-        kdf = PBKDF2(
+        kdf = PBKDF2HMAC(
             algorithm=hashes.SHA256(),
             length=KEY_SIZE,
             salt=salt,
             iterations=PBKDF2_ITERATIONS,
-            backend=self.backend,
         )
 
         key = kdf.derive(password.encode())
