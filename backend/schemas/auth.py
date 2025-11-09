@@ -43,6 +43,23 @@ class TokenRefresh(BaseModel):
     refresh_token: str
 
 
+class RegistrationRequest(BaseModel):
+    """Combined schema for tenant and user registration."""
+    # Tenant data
+    tenant_name: str = Field(..., min_length=1, max_length=255, description="Company name")
+    tenant_slug: str = Field(..., min_length=3, max_length=50, pattern="^[a-z0-9-]+$", description="URL-friendly identifier")
+    tenant_nif: str = Field(..., min_length=9, max_length=9, pattern="^[0-9]{9}$", description="Portuguese NIF")
+
+    # User data
+    email: EmailStr
+    password: str = Field(..., min_length=8, max_length=100)
+    full_name: str = Field(..., min_length=1, max_length=255)
+
+    # Optional tenant settings
+    max_users: Optional[int] = Field(5, ge=1, le=100, description="Maximum users for tenant")
+    max_evfs_per_month: Optional[int] = Field(10, ge=1, le=1000, description="Maximum EVFs per month")
+
+
 # Response schemas
 class Token(BaseModel):
     """JWT token response."""

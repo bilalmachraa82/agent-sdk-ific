@@ -28,7 +28,8 @@ from backend.schemas.auth import (
     Token,
     TokenRefresh,
     UserResponse,
-    TenantCreate
+    TenantCreate,
+    RegistrationRequest
 )
 
 router = APIRouter()
@@ -66,8 +67,7 @@ async def get_current_user(
         select(User).where(
             User.id == user_id,
             User.tenant_id == tenant_id,
-            User.is_active == True,
-            User.deleted_at.is_(None)
+            User.is_active == True
         )
     )
     user = result.scalar_one_or_none()
@@ -92,20 +92,20 @@ async def get_current_active_user(
     return current_user
 
 
-@router.post("/register", response_model=UserResponse)
+@router.post("/register", response_model=Token)
 async def register(
-    tenant_data: TenantCreate,
-    user_data: UserCreate,
+    data: RegistrationRequest,
     db: AsyncSession = Depends(get_db)
 ):
     """
     Register a new tenant and initial admin user.
     This creates both the tenant and the first admin user.
+    Returns access and refresh tokens for immediate login.
     """
 
     # Check if email already exists
     result = await db.execute(
-        select(User).where(User.email == user_data.email)
+        select(User).where(User.email == data.email)
     )
     if result.scalar_one_or_none():
         raise HTTPException(
@@ -115,7 +115,7 @@ async def register(
 
     # Check if tenant slug already exists
     result = await db.execute(
-        select(Tenant).where(Tenant.slug == tenant_data.slug)
+        select(Tenant).where(Tenant.slug == data.tenant_slug)
     )
     if result.scalar_one_or_none():
         raise HTTPException(
@@ -123,14 +123,24 @@ async def register(
             detail="Tenant slug already exists"
         )
 
+    # Check if NIF already exists
+    result = await db.execute(
+        select(Tenant).where(Tenant.nif == data.tenant_nif)
+    )
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="NIF already registered"
+        )
+
     try:
         # Create tenant
         tenant = Tenant(
-            name=tenant_data.name,
-            slug=tenant_data.slug,
-            nif=tenant_data.nif,
-            max_users=tenant_data.max_users or 5,
-            max_evfs_per_month=tenant_data.max_evfs_per_month or 10,
+            name=data.tenant_name,
+            slug=data.tenant_slug,
+            nif=data.tenant_nif,
+            plan="starter",
+            is_active=True,
             settings={}
         )
         db.add(tenant)
@@ -138,15 +148,17 @@ async def register(
 
         # Create admin user
         user = User(
-            email=user_data.email,
-            full_name=user_data.full_name,
-            password_hash=await async_get_password_hash(user_data.password),
+            email=data.email,
+            full_name=data.full_name,
+            password_hash=await async_get_password_hash(data.password),
             tenant_id=tenant.id,
             role="admin",
-            is_active=True
+            is_active=True,
+            is_verified=True
         )
         db.add(user)
         await db.commit()
+        await db.refresh(user)
 
         # Log registration
         logger.info(
@@ -167,14 +179,35 @@ async def register(
         )
         logger.info("Audit log", **audit)
 
-        return user
+        # Create tokens for immediate login
+        access_token = create_access_token(
+            data={
+                "sub": str(user.id),
+                "email": user.email,
+                "role": user.role
+            },
+            tenant_id=str(user.tenant_id)
+        )
+        refresh_token = create_refresh_token(
+            data={
+                "sub": str(user.id)
+            },
+            tenant_id=str(user.tenant_id)
+        )
+
+        return {
+            "access_token": access_token,
+            "refresh_token": refresh_token,
+            "token_type": "bearer",
+            "expires_in": settings.jwt_expiration_minutes * 60
+        }
 
     except Exception as e:
         await db.rollback()
         logger.error("Registration failed", error=str(e))
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Registration failed"
+            detail=f"Registration failed: {str(e)}"
         )
 
 
@@ -192,8 +225,7 @@ async def login(
     result = await db.execute(
         select(User).where(
             User.email == form_data.username,  # OAuth2 uses 'username' field
-            User.is_active == True,
-            User.deleted_at.is_(None)
+            User.is_active == True
         )
     )
     user = result.scalar_one_or_none()
@@ -214,16 +246,16 @@ async def login(
     access_token = create_access_token(
         data={
             "sub": str(user.id),
-            "tenant_id": str(user.tenant_id),
             "email": user.email,
             "role": user.role
-        }
+        },
+        tenant_id=str(user.tenant_id)
     )
     refresh_token = create_refresh_token(
         data={
-            "sub": str(user.id),
-            "tenant_id": str(user.tenant_id)
-        }
+            "sub": str(user.id)
+        },
+        tenant_id=str(user.tenant_id)
     )
 
     # Update last login
@@ -241,7 +273,7 @@ async def login(
         "access_token": access_token,
         "refresh_token": refresh_token,
         "token_type": "bearer",
-        "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+        "expires_in": settings.jwt_expiration_minutes * 60
     }
 
 
@@ -284,17 +316,17 @@ async def refresh_token(
         access_token = create_access_token(
             data={
                 "sub": str(user.id),
-                "tenant_id": str(user.tenant_id),
                 "email": user.email,
                 "role": user.role
-            }
+            },
+            tenant_id=str(user.tenant_id)
         )
 
         return {
             "access_token": access_token,
             "refresh_token": refresh_data.refresh_token,  # Return same refresh token
             "token_type": "bearer",
-            "expires_in": settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60
+            "expires_in": settings.jwt_expiration_minutes * 60
         }
 
     except Exception as e:
