@@ -1,0 +1,25 @@
+# OS metadata
+.DS_Store
+
+# Python virtual environments
+venv/
+backend/venv/
+
+# Environment files
+.env
+backend/.env
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Coverage and reports
+.coverage
+backend/.coverage
+htmlcov/
+
+# Node modules
+frontend/node_modules/
+
+# Archives and generated bundles
+*.zip
