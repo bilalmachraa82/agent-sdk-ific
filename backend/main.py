@@ -8,11 +8,12 @@ from typing import AsyncGenerator
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
-# from prometheus_fastapi_instrumentator import Instrumentator  # TODO: Add when needed
+from fastapi.responses import JSONResponse, Response
 
 from backend.core.config import settings
 from backend.core.database import db_manager, initialize_database, close_database
+from backend.core.tracing import setup_tracing, TracingConfig
+from backend.core.metrics import get_metrics
 from backend.core.middleware import (
     TenantMiddleware,
     RateLimitMiddleware,
@@ -37,9 +38,25 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
                 environment=settings.environment,
                 version=settings.app_version)
 
+    # Initialize OpenTelemetry tracing
+    tracing_config = TracingConfig(
+        service_name=settings.app_name,
+        service_version=settings.app_version,
+        environment=settings.environment,
+        enable_console_export=(settings.environment == "development")
+    )
+    tracing_manager = setup_tracing(tracing_config)
+    logger.info("OpenTelemetry tracing initialized")
+
     # Initialize database connection pool
     await initialize_database()
     logger.info("Database connection pool initialized")
+
+    # Instrument FastAPI for automatic tracing
+    tracing_manager.instrument_fastapi(app)
+    tracing_manager.instrument_redis()
+    tracing_manager.instrument_httpx()
+    logger.info("Framework instrumentation complete")
 
     # Initialize vector store connection
     # await qdrant_service.initialize()
@@ -52,6 +69,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator:
     # Shutdown
     logger.info("Shutting down EVF Portugal 2030 Backend")
     await close_database()
+    tracing_manager.shutdown()
 
 
 # Create FastAPI application
@@ -96,10 +114,6 @@ app.add_middleware(
 
 # 1. Add tenant isolation (innermost - must run first to set context)
 app.add_middleware(TenantMiddleware)
-
-# Setup Prometheus metrics (if needed in future)
-# instrumentator = Instrumentator()
-# instrumentator.instrument(app).expose(app, endpoint="/metrics")
 
 # Include routers
 app.include_router(
@@ -178,8 +192,32 @@ async def root():
         "status": "operational",
         "environment": settings.environment,
         "docs": "/api/docs" if settings.environment != "production" else "disabled",
-        "health": "/api/health"
+        "health": "/api/health",
+        "metrics": "/metrics"
     }
+
+
+@app.get("/metrics")
+async def metrics():
+    """
+    Prometheus metrics endpoint.
+
+    Exposes metrics in Prometheus text format for scraping.
+
+    Metrics include:
+    - HTTP request metrics (count, duration, in-progress)
+    - Authentication metrics (attempts, duration, algorithm usage)
+    - RLS enforcement metrics (checks, violations, overhead)
+    - Database metrics (query duration, connections)
+    - EVF processing metrics (duration, operations, errors)
+    - AI agent metrics (executions, token usage, cost)
+    - Security events (RLS violations, rate limits)
+
+    Returns:
+        Prometheus metrics in text format
+    """
+    data, content_type = get_metrics()
+    return Response(content=data, media_type=content_type)
 
 
 if __name__ == "__main__":

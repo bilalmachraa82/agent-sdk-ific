@@ -1,6 +1,8 @@
 """
 Security module for JWT authentication, password hashing, and tenant context management.
 Implements secure token generation with tenant isolation.
+
+Supports both HS256 (legacy) and RS256 (modern) JWT signing with automatic migration.
 """
 import asyncio
 from datetime import datetime, timedelta
@@ -9,21 +11,48 @@ from concurrent.futures import ThreadPoolExecutor
 import bcrypt
 from jose import JWTError, jwt
 from fastapi import HTTPException, status
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.backends import default_backend
+import structlog
 
 from .config import settings
+
+logger = structlog.get_logger(__name__)
 
 # Global thread pool for CPU-bound bcrypt operations
 _bcrypt_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="bcrypt-")
 
 
 class SecurityManager:
-    """Manages authentication, authorization, and encryption."""
+    """
+    Manages authentication, authorization, and encryption.
+
+    Supports both HS256 (legacy) and RS256 (modern) JWT signing.
+    Set USE_RS256 environment variable to enable RS256.
+    """
 
     def __init__(self):
         self.secret_key = settings.secret_key
         self.algorithm = settings.jwt_algorithm
         self.access_token_expire_minutes = settings.jwt_expiration_minutes
         self.refresh_token_expire_days = settings.jwt_refresh_expiration_days
+
+        # RS256 support flag (can be set via environment variable)
+        self.use_rs256 = getattr(settings, 'use_rs256_jwt', False)
+
+        # Lazy-load KeyManager only if RS256 is enabled
+        self._key_manager = None
+
+        if self.use_rs256:
+            logger.info("RS256 JWT signing enabled")
+
+    @property
+    def key_manager(self):
+        """Lazy-load KeyManager when needed."""
+        if self._key_manager is None and self.use_rs256:
+            from .key_manager import get_key_manager
+            self._key_manager = get_key_manager()
+        return self._key_manager
 
     def hash_password(self, password: str) -> str:
         """
@@ -95,6 +124,9 @@ class SecurityManager:
         """
         Create JWT access token with tenant context.
 
+        Supports both HS256 (legacy) and RS256 (modern) algorithms.
+        RS256 tokens include 'kid' in header for key rotation support.
+
         Args:
             data: Token payload data
             tenant_id: Tenant UUID for isolation
@@ -104,41 +136,108 @@ class SecurityManager:
             Encoded JWT token string
         """
         to_encode = data.copy()
-        
+
         # Add tenant context to token
         to_encode.update({"tenant_id": tenant_id})
-        
+
         if expires_delta:
             expire = datetime.utcnow() + expires_delta
         else:
             expire = datetime.utcnow() + timedelta(minutes=self.access_token_expire_minutes)
-        
-        to_encode.update({"exp": expire, "type": "access"})
-        
-        encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
-        return encoded_jwt
+
+        to_encode.update({
+            "exp": expire,
+            "iat": datetime.utcnow(),
+            "type": "access"
+        })
+
+        # Use RS256 if enabled, otherwise fallback to HS256
+        if self.use_rs256 and self.key_manager:
+            return self._create_rs256_token(to_encode)
+        else:
+            encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm="HS256")
+            return encoded_jwt
 
     def create_refresh_token(self, data: Dict[str, Any], tenant_id: str) -> str:
-        """Create JWT refresh token with extended expiration."""
+        """
+        Create JWT refresh token with extended expiration.
+
+        Supports both HS256 (legacy) and RS256 (modern) algorithms.
+        """
         to_encode = data.copy()
         to_encode.update({"tenant_id": tenant_id})
-        
+
         expire = datetime.utcnow() + timedelta(days=self.refresh_token_expire_days)
-        to_encode.update({"exp": expire, "type": "refresh"})
-        
-        encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm=self.algorithm)
-        return encoded_jwt
+        to_encode.update({
+            "exp": expire,
+            "iat": datetime.utcnow(),
+            "type": "refresh"
+        })
+
+        # Use RS256 if enabled, otherwise fallback to HS256
+        if self.use_rs256 and self.key_manager:
+            return self._create_rs256_token(to_encode)
+        else:
+            encoded_jwt = jwt.encode(to_encode, self.secret_key, algorithm="HS256")
+            return encoded_jwt
 
     def decode_token(self, token: str) -> Dict[str, Any]:
         """
         Decode and validate JWT token.
 
+        Supports both HS256 (legacy) and RS256 (modern) algorithms.
+        Automatically detects algorithm from token header.
+
         Raises:
             HTTPException: If token is invalid or expired
         """
         try:
-            payload = jwt.decode(token, self.secret_key, algorithms=[self.algorithm])
-            return payload
+            # Peek at token header to determine algorithm
+            unverified_header = jwt.get_unverified_header(token)
+            algorithm = unverified_header.get("alg", "HS256")
+
+            if algorithm == "RS256":
+                # RS256 token - use public key verification
+                kid = unverified_header.get("kid")
+                if not kid:
+                    raise HTTPException(
+                        status_code=status.HTTP_401_UNAUTHORIZED,
+                        detail="RS256 token missing 'kid' in header",
+                        headers={"WWW-Authenticate": "Bearer"},
+                    )
+
+                if not self.key_manager:
+                    from .key_manager import get_key_manager
+                    self._key_manager = get_key_manager()
+
+                # Get public key for this kid
+                public_key_pem = self.key_manager.get_public_key_for_verification(kid)
+
+                # Decode with RS256
+                payload = jwt.decode(
+                    token,
+                    public_key_pem,
+                    algorithms=["RS256"],
+                    options={"verify_signature": True}
+                )
+                return payload
+
+            elif algorithm == "HS256":
+                # HS256 token - use secret key
+                payload = jwt.decode(
+                    token,
+                    self.secret_key,
+                    algorithms=["HS256"]
+                )
+                return payload
+
+            else:
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail=f"Unsupported algorithm: {algorithm}",
+                    headers={"WWW-Authenticate": "Bearer"},
+                )
+
         except JWTError as e:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
@@ -146,17 +245,49 @@ class SecurityManager:
                 headers={"WWW-Authenticate": "Bearer"},
             )
 
+    def _create_rs256_token(self, payload: Dict[str, Any]) -> str:
+        """
+        Create RS256-signed JWT token.
+
+        Args:
+            payload: Token payload data
+
+        Returns:
+            Encoded JWT token string with RS256 signature
+        """
+        # Get current signing key
+        kid, private_key = self.key_manager.get_private_key_for_signing()
+
+        # Serialize private key for jose library
+        private_key_pem = private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        )
+
+        # Create JWT with kid in header
+        encoded_jwt = jwt.encode(
+            payload,
+            private_key_pem,
+            algorithm="RS256",
+            headers={"kid": kid}
+        )
+
+        logger.debug("Created RS256 token", kid=kid)
+
+        return encoded_jwt
+
     def get_tenant_from_token(self, token: str) -> str:
         """Extract tenant ID from JWT token."""
         payload = self.decode_token(token)
         tenant_id = payload.get("tenant_id")
-        
+
         if not tenant_id:
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Token missing tenant context",
             )
-        
+
         return tenant_id
 
 

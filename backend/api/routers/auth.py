@@ -21,6 +21,7 @@ from backend.core.security import (
 )
 from backend.core.config import settings
 from backend.core.logging import setup_logging, create_audit_log
+from backend.core.key_manager import get_key_manager
 from backend.models.tenant import User, Tenant
 from backend.schemas.auth import (
     UserCreate,
@@ -367,6 +368,33 @@ async def logout(
     # Could implement token blacklisting here if needed
 
     return {"message": "Successfully logged out"}
+
+
+@router.get("/.well-known/jwks.json")
+async def get_jwks():
+    """
+    Get JSON Web Key Set (JWKS) for RS256 JWT verification.
+
+    This endpoint provides public keys for JWT signature verification.
+    Clients and third-party services can use this to verify JWT tokens
+    signed with RS256 algorithm.
+
+    Returns:
+        JWKS document with array of public keys
+    """
+    try:
+        key_manager = get_key_manager()
+        public_keys = key_manager.get_public_keys()
+
+        return {
+            "keys": public_keys
+        }
+
+    except Exception as e:
+        logger.error("Failed to generate JWKS", error=str(e))
+        # Return empty key set if KeyManager not configured
+        # This allows HS256-only deployments to work
+        return {"keys": []}
 
 
 @router.post("/change-password")
